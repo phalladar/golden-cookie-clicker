@@ -90,7 +90,8 @@ while True:
     screenshot = get_cookie_clicker_screenshot()
     kp_reference, des_reference, img_reference = prepare_reference_image(
         reference_path)
-    coords = find_golden_cookie(screenshot, kp_reference, des_reference, img_reference)
+    coords = find_golden_cookie(
+        screenshot, kp_reference, des_reference, img_reference)
     if coords and AUTOCLICK:
         x, y = coords
         # move the cursor to the golden cookie and click
