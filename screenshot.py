@@ -4,13 +4,19 @@ import re
 from PIL import ImageGrab
 from PIL import Image
 import cv2
-from skimage.feature import SIFT
-from skimage.io import imread
 
 THRESHOLD_VALUE = 127  # Tweak as needed
-
+reference_path = 'C:\\Users\\allocate\\development\\cookies\\reference.png'
+cheat_path = 'C:\\Users\\allocate\\development\\cookies\\cheat.jpg'
+TESTING = True
 
 def get_cookie_clicker_screenshot():
+    if TESTING:
+        img = Image.open(cheat_path).convert('L')
+        img = np.array(img)
+        ret, img = cv2.threshold(
+            img, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
+        return img
     title_pattern = re.compile(r"^.*cookies.*Cookie Clicker.*")
     all_windows = Desktop().windows()
     for window in all_windows:
@@ -23,8 +29,6 @@ def get_cookie_clicker_screenshot():
             img = np.array(img)
             ret, img = cv2.threshold(
                 img, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
-            # cv2.imshow("Cookie Clicker screenshot", img)
-            # cv2.waitKey(0)
             return img
     else:
         print("Cookie Clicker window not found")
@@ -32,20 +36,21 @@ def get_cookie_clicker_screenshot():
 
 
 def prepare_reference_image(image_path):
-    img = Image.open(image_path)
-    # convert the image to grayscale
-    gray = img.convert('L')
-    # Applying threshold to the image
-    img_array = np.array(gray)
+    # Open the image and convert it to grayscale
+    img = Image.open(image_path).convert('L')
+    # Convert the image to a numpy array and apply thresholding
+    img_array = np.array(img)
     img_array[img_array < THRESHOLD_VALUE] = 0
     img_array[img_array >= THRESHOLD_VALUE] = 255
-    # Applying SIFT on the processed image
+    # Create an SIFT object
     sift = cv2.SIFT_create()
-    kp, des = sift.detectAndCompute(img_array, None)
-    return kp, des
+    # Detect keypoints and compute their descriptors
+    keypoints, descriptors = sift.detectAndCompute(img_array, None)
+    # Return the keypoints and descriptors
+    return keypoints, descriptors, img_array
 
 
-def find_golden_cookie(screenshot, kp_reference, des_reference):
+def find_golden_cookie(screenshot, kp_reference, des_reference, img_reference):
     sift = cv2.SIFT_create()
     # Finding keypoints and descriptor of the screenshot
     kp_screenshot, des_screenshot = sift.detectAndCompute(screenshot, None)
@@ -53,20 +58,29 @@ def find_golden_cookie(screenshot, kp_reference, des_reference):
     bf = cv2.BFMatcher(cv2.NORM_L2)
     # Match descriptors.
     matches = bf.match(des_reference, des_screenshot)
-    # Apply ratio test
-    good = []
-    for m, n in matches:
-        if m.distance < 0.75 * n.distance:
-            good.append([m])
-    # cv2.drawMatchesKnn expects list of lists as matches.
-    img3 = cv2.drawMatchesKnn(img1, kp1, img2, kp2, good, None, flags=2)
-    plt.imshow(img3)
-    plt.show()
+    # Sort the matches in the order of their distance.
+    matches = sorted(matches, key=lambda x: x.distance)
+    # Draw first 10 matches.
+    img_matches = cv2.drawMatches(img_reference, kp_reference, screenshot, kp_screenshot, matches[:15], None)
+
+    cv2.imshow("Matches", img_matches)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    # Obtain the coordinates of the best match
+    ratio = matches[0].distance / matches[1].distance
+    print("Ratio = ", ratio)
+    if len(matches) > 0 and ratio < 0.75:
+        x, y = kp_screenshot[matches[0].trainIdx].pt
+        print("Match found")
+        return x, y
+    else:
+        print("No match found")
+        return None
+
 
 # ------
 
 
-reference_path = 'C:\\Users\\allocate\\development\\cookies\\reference.jpg'
 screenshot = get_cookie_clicker_screenshot()
-kp_reference, des_reference = prepare_reference_image(reference_path)
-find_golden_cookie(screenshot, kp_reference, des_reference)
+kp_reference, des_reference, img_reference = prepare_reference_image(reference_path)
+find_golden_cookie(screenshot, kp_reference, des_reference, img_reference)
