@@ -4,6 +4,7 @@ import cv2
 import time
 import win32api
 import datetime
+import os
 from PIL import ImageGrab
 from PIL import Image
 from pywinauto import Desktop
@@ -11,9 +12,13 @@ from pywinauto import mouse
 from pywinauto.application import Application
 
 THRESHOLD_VALUE = 127  # Tweak as needed
-reference_path = 'C:\\Users\\allocate\\development\\cookies\\reference.png'
-cheat_path = 'C:\\Users\\allocate\\development\\cookies\\cheat.jpg'
+# The reference image of the golden cookie
+reference_path = os.path.join(os.path.dirname(__file__), 'reference.png')
+# A file containing a screenshot with the golden cookie, for testing purposes
+cheat_path = os.path.join(os.path.dirname(__file__), 'cheat.jpg')
+# When true, will bypass the screenshot function and use the cheat image instead
 TESTING = False
+# When true, will automatically click the golden cookie when it appears
 AUTOCLICK = True
 
 
