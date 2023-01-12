@@ -3,10 +3,12 @@ import re
 import cv2
 import time
 import win32api
+import datetime
 from PIL import ImageGrab
 from PIL import Image
 from pywinauto import Desktop
 from pywinauto import mouse
+from pywinauto.application import Application
 
 THRESHOLD_VALUE = 127  # Tweak as needed
 reference_path = 'C:\\Users\\allocate\\development\\cookies\\reference.png'
@@ -21,24 +23,18 @@ def get_cookie_clicker_screenshot():
         img = np.array(img)
         ret, img = cv2.threshold(img, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
         return img
+
     title_pattern = re.compile(r"^.*cookies.*Cookie Clicker.*")
-    all_windows = Desktop().windows()
-    for window in all_windows:
-        if title_pattern.match(window.texts()[0]):
-            current_x, current_y = win32api.GetCursorPos()
-            x, y, width, height = window.rectangle().left, window.rectangle(
-            ).top, window.rectangle().width(), window.rectangle().height()
-            mouse.move(coords=(x, y))
-            img = ImageGrab.grab(
-                bbox=(x, y, x + width, y + height)).convert('L')
-            img = np.array(img)
-            ret, img = cv2.threshold(
-                img, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
-            mouse.move(coords=(current_x, current_y))
-            return img
-    else:
-        print("Cookie Clicker window not found")
-        return None
+    app = Application().connect(title_re=title_pattern)
+    window = app.window(title_re=title_pattern)
+    x, y, width, height = window.rectangle().left, window.rectangle(
+    ).top, window.rectangle().width(), window.rectangle().height()
+    # print("Window position is (", x, ",", y, ")")
+    img = ImageGrab.grab(
+        bbox=(x, y, x + width, y + height)).convert('L')
+    img = np.array(img)
+    ret, img = cv2.threshold(img, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
+    return img
 
 
 def prepare_reference_image(image_path):
@@ -81,22 +77,31 @@ def find_golden_cookie(screenshot, kp_reference, des_reference, img_reference):
         return x, y
     else:
         # print("No match found")
-        return None
+        return -1, -1
 
 
-current_x, current_y = win32api.GetCursorPos()
+def click_mouse(x, y):
+    mouse.press(button='left', coords=(x, y))
+    time.sleep(0.2)
+    mouse.release(button='left', coords=(x, y))
+
 
 while True:
+    current_x, current_y = win32api.GetCursorPos()
+
+    # print("Mouse position is (", current_x, ",", current_y, ")")
     screenshot = get_cookie_clicker_screenshot()
     kp_reference, des_reference, img_reference = prepare_reference_image(
         reference_path)
-    coords = find_golden_cookie(
-        screenshot, kp_reference, des_reference, img_reference)
-    if coords and AUTOCLICK:
-        x, y = coords
-        # move the cursor to the golden cookie and click
-        mouse.move(coords=(x, y))
-        mouse.click(button='left')
-        # move cursor back to its initial position
-        mouse.move(coords=(current_x, current_y))
+    x, y = find_golden_cookie(screenshot, kp_reference,
+                              des_reference, img_reference)
+    if x >= 0 and y >= 0:
+        x, y = int(x), int(y)
+        print("******** Cookie found at:", datetime.datetime.now(),
+              "at (", int(x), ", ", int(y), ")")
+        if AUTOCLICK:
+            click_mouse(int(x), int(y))
+            click_mouse(int(x), int(y))
+            click_mouse(int(x), int(y))
+            mouse.move(coords=(current_x, current_y))
     time.sleep(1)
